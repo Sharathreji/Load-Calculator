@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Load Calculator For Achan</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f6f9;
+  margin: 0;
+  padding: 10px;
+}
+.container {
+  max-width: 1100px;
+  margin: auto;
+  background: #fff;
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+h2 {
+  text-align: center;
+  color: #2e7d32;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+th, td {
+  border: 1px solid #ccc;
+  padding: 6px;
+  text-align: center;
+}
+th {
+  background: #e8f5e9;
+}
+input {
+  width: 90%;
+  padding: 4px;
+  text-align: center;
+}
+button {
+  margin: 8px 5px 0 0;
+  padding: 8px 14px;
+  background: #2e7d32;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+button:hover {
+  background: #1b5e20;
+}
+.summary {
+  margin-top: 15px;
+  background: #f1f8e9;
+  padding: 10px;
+  border-radius: 8px;
+}
+.summary div {
+  margin: 5px 0;
+  font-weight: bold;
+}
+@media print {
+  button { display: none; }
+  body { background: white; }
+  .container { box-shadow: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+<h2>Load Calculator For Achan</h2>
+<p>Formula: (Vannam × Vannam × Length) ÷ 2304</p>
+
+<table id="woodTable">
+<tr>
+  <th>Vannam (in)</th>
+  <th>Length (ft)</th>
+  <th>Class</th>
+  <th>Value</th>
+</tr>
+</table>
+
+<button onclick="addRow()">+ Add Row</button>
+<button onclick="printReport()">🖨 Print Report</button>
+
+<div class="summary">
+  <div>First Class Total (≥38): <span id="firstTotal">0.0</span></div>
+  <div>Second Class Total (≥28): <span id="secondTotal">0.0</span></div>
+  <div>Third Class Total (≥18): <span id="thirdTotal">0.0</span></div>
+</div>
+</div>
+
+<script>
+// Custom rounding rule:
+// 5.64 → 5.6
+// 5.65 → 5.6
+// 5.66 → 5.7
+function roundOneDecimal(value) {
+  let scaled = value * 100;
+  let secondDecimal = Math.floor(scaled % 10);
+
+  if (secondDecimal >= 6) {
+    return Math.ceil(value * 10) / 10;
+  } else {
+    return Math.floor(value * 10) / 10;
+  }
+}
+
+// Now adds 10 rows per click
+function addRow() {
+  const table = document.getElementById("woodTable");
+  for(let j = 0; j < 10; j++) {
+    const row = table.insertRow(-1);
+    row.innerHTML = `
+      <td><input type="number" oninput="calculate()"></td>
+      <td><input type="number" oninput="calculate()"></td>
+      <td>–</td>
+      <td>0.0</td>
+    `;
+  }
+}
+
+function calculate() {
+  let first = 0, second = 0, third = 0;
+  const rows = document.getElementById("woodTable").rows;
+
+  for(let i=1;i<rows.length;i++){
+    let vannam = parseFloat(rows[i].cells[0].children[0].value) || 0;
+    let length = parseFloat(rows[i].cells[1].children[0].value) || 0;
+
+    let rawValue = (vannam * vannam * length) / 2304;
+    let value = roundOneDecimal(rawValue);
+
+    rows[i].cells[3].innerText = value.toFixed(1);
+
+    let woodClass = "-";
+    if(vannam >= 38){
+      first += value;
+      woodClass = "First";
+    } else if(vannam >= 28){
+      second += value;
+      woodClass = "Second";
+    } else if(vannam >= 18){
+      third += value;
+      woodClass = "Third";
+    }
+
+    rows[i].cells[2].innerText = woodClass;
+  }
+
+  document.getElementById("firstTotal").innerText = roundOneDecimal(first).toFixed(1);
+  document.getElementById("secondTotal").innerText = roundOneDecimal(second).toFixed(1);
+  document.getElementById("thirdTotal").innerText = roundOneDecimal(third).toFixed(1);
+}
+
+function printReport() {
+  const rows = document.getElementById("woodTable").rows;
+  let first = [], second = [], third = [];
+
+  for(let i=1;i<rows.length;i++){
+    let vannam = rows[i].cells[0].children[0].value;
+    let length = rows[i].cells[1].children[0].value;
+    let woodClass = rows[i].cells[2].innerText;
+    let value = rows[i].cells[3].innerText;
+
+    if(woodClass === "First") first.push([vannam,length,value]);
+    else if(woodClass === "Second") second.push([vannam,length,value]);
+    else if(woodClass === "Third") third.push([vannam,length,value]);
+  }
+
+  let report = `
+  <h2>Wood Mill Report</h2>
+
+  <h3>First Class</h3>${buildTable(first)}
+  <h4>Total: ${document.getElementById("firstTotal").innerText}</h4>
+
+  <h3>Second Class</h3>${buildTable(second)}
+  <h4>Total: ${document.getElementById("secondTotal").innerText}</h4>
+
+  <h3>Third Class</h3>${buildTable(third)}
+  <h4>Total: ${document.getElementById("thirdTotal").innerText}</h4>
+  `;
+
+  let win = window.open("", "", "width=900,height=650");
+  win.document.write(`<html><head><title>Report</title></head><body>${report}</body></html>`);
+  win.document.close();
+  win.print();
+}
+
+function buildTable(data) {
+  if(data.length === 0) return "<p>No data</p>";
+  let html = "<table border='1' cellspacing='0' cellpadding='5'><tr><th>Vannam</th><th>Length</th><th>Value</th></tr>";
+  data.forEach(row=>{
+    html += `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td></tr>`;
+  });
+  html += "</table>";
+  return html;
+}
+
+// Initial 10 rows
+addRow();
+</script>
+
+</body>
+</html>
